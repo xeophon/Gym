@@ -137,6 +137,8 @@ def test_build_model_call_record_from_exchange():
         "response": {
             "id": "resp-1",
             "model": "m",
+            "status": "incomplete",
+            "incomplete_details": {"reason": "max_output_tokens"},
             "usage": {
                 "input_tokens": 10,
                 "output_tokens": 5,
@@ -164,6 +166,7 @@ def test_build_model_call_record_from_exchange():
     assert rec.reasoning_content == "thinking..."
     assert rec.tool_calls == [{"call_id": "c1", "name": "calc", "arguments": {"x": 1}}]
     assert rec.latency_total_ms == 18.4
+    assert rec.finish_reason == "max_output_tokens"
     assert build_model_call_record({"response": {"id": 123}}, call_index=0).response_id is None
     empty = build_model_call_record({"request": {}, "response": {}}, call_index=0)
     assert empty.request == {}
@@ -196,6 +199,10 @@ def test_build_model_call_record_from_exchange():
         "latency_total_ms",
         "latency_ttft_ms",
     } <= type(rec).model_json_schema()["properties"].keys()
+
+    aliases = {"cached_input_tokens": 4, "reasoning_output_tokens": 3}
+    aliased = build_model_call_record({"response": {"usage": aliases}}, call_index=0)
+    assert (aliased.cached_tokens, aliased.tokens_reasoning) == (4, 3)
 
 
 @pytest.mark.parametrize(
@@ -1254,11 +1261,16 @@ def test_aggregate_model_call_records_sums_and_counts():
     from nemo_gym.base_responses_api_model import ModelCallRecord, aggregate_model_call_records
 
     calls = [
-        ModelCallRecord(call_index=0, tokens_in=10, tokens_out=5, tokens_total=15, latency_total_ms=2.0),
-        ModelCallRecord(call_index=1, tokens_in=20, tokens_out=3, tokens_total=23, latency_total_ms=1.0),
+        ModelCallRecord(
+            call_index=0, tokens_in=10, tokens_out=5, tokens_total=15, cached_tokens=4, latency_total_ms=2.0
+        ),
+        ModelCallRecord(
+            call_index=1, tokens_in=20, tokens_out=3, tokens_total=23, cached_tokens=0, latency_total_ms=1.0
+        ),
     ]
     agg = aggregate_model_call_records(calls)
     assert (agg["tokens_in"], agg["tokens_out"], agg["tokens_total"]) == (30, 8, 38)
+    assert agg["cached_tokens"] == 4
     assert agg["latency_total_ms"] == 3.0 and agg["num_calls"] == 2
     # empty -> all-None totals but a well-formed shape (num_calls 0)
     assert aggregate_model_call_records([]) == {
@@ -1266,6 +1278,7 @@ def test_aggregate_model_call_records_sums_and_counts():
         "tokens_out": None,
         "tokens_reasoning": None,
         "tokens_total": None,
+        "cached_tokens": None,
         "latency_total_ms": None,
         "num_calls": 0,
     }
@@ -1319,6 +1332,8 @@ def test_extract_token_stats_anthropic_fully_cached_zero_base():
     assert stats["tokens_in"] == 500  # 0 base + cache_read 500 + cache_creation 0
     assert stats["tokens_out"] == 12
     assert stats["cache_creation_tokens"] == 0
+    empty = extract_token_stats({"output_tokens": 12, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0})
+    assert (empty["tokens_in"], empty["tokens_total"], empty["cache_creation_tokens"]) == (None, None, 0)
 
 
 def test_extract_token_stats_openai_cached_not_double_counted():

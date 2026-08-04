@@ -1,0 +1,97 @@
+---
+title: "Trajectory capability matrix"
+description: "Standardized trajectory support by criterion, producer, and follow-up pull request"
+position: 5
+---
+
+# Trajectory capability matrix
+
+`ng_trajectory` schema version `1.0` combines available model-call capture and agent observations in a rollout record. It
+contains task and rollout identity, model calls and token usage, semantic turns, invocation-scoped model-visible histories,
+tool attempts, resolution, step count, and explicit evidence gaps. Source attachments remain under `ng_model_call_capture` and
+`ng_agent_observations`; aggregate-metrics requests omit all three attachments.
+
+Enable model-call evidence with `observability_enabled: true` and `model_call_capture_dir: /data/model-calls`. Calls must use
+a `/ng-rollout/<rollout_id>` Gym Model Server prefix. See [Model-call capture](/model-server/model-call-capture).
+Captured request and response payloads are included in `ng_trajectory` unless the producer reports redaction; direct provider
+calls are not. Token fields are
+`prompt_tokens`, `completion_tokens`, `reasoning_tokens`, `total_tokens`, and `cached_tokens`; unavailable values are `null`.
+
+## Acceptance criteria
+
+| ID | Criterion |
+|---|---|
+| C1 | Standard schema for per-model-call token statistics and response metadata |
+| C2 | Prompt, completion, reasoning, total, and cached token counts when available |
+| C3 | Task and rollout identity, turn number, timestamp, question, answer, reasoning, resolution, and step count per turn |
+| C4 | Model-visible input and output history can be reconstructed from the rollout record |
+| C5 | Tool output, status, start and completion timestamps, and duration |
+| C6 | Independent timing for parallel tool calls |
+| C7 | Resource-server-backed and custom or sandbox-backed benchmarks |
+
+## Follow-up pull requests
+
+PRs #2115 and #2117–#2120 are stacked; later PRs include earlier stack changes. Open PRs describe planned evidence, not
+current matrix coverage. [#2153](https://github.com/NVIDIA-NeMo/Gym/pull/2153) provides Claude Code tool timing and status;
+[#2293](https://github.com/NVIDIA-NeMo/Gym/pull/2293) joins tool results to timing observations. No available PR from #2115
+through #2122 adds canonical C3 turns.
+
+| PR | Producer or path | Evidence added | Remaining gap |
+|---|---|---|---|
+| [#2115](https://github.com/NVIDIA-NeMo/Gym/pull/2115) | OpenClaw, PinchBench | Correlated model calls, conversations, parallel tool timing, and sandbox observations | No C3 turns |
+| [#2116](https://github.com/NVIDIA-NeMo/Gym/pull/2116) | Claude Code | None; superseded by #2153 and not merged to `main` | See #2153 and #2293 |
+| [#2117](https://github.com/NVIDIA-NeMo/Gym/pull/2117) | Hermes | Parallel tool timing and agent observations | No C3 turns |
+| [#2118](https://github.com/NVIDIA-NeMo/Gym/pull/2118) | Pi | Correlated model calls, conversations, and parallel tool timing | No C3 turns |
+| [#2119](https://github.com/NVIDIA-NeMo/Gym/pull/2119) | OpenCode | Rollout-level model calls, retained conversations, and parallel tool timing | No exact per-invocation model-call ownership; no C3 turns |
+| [#2120](https://github.com/NVIDIA-NeMo/Gym/pull/2120) | SWE OpenCode, OpenHands | OpenCode model-call correlation plus retained conversations and sandbox observations for both paths | OpenHands calls, tool timing, and C3 turns remain unavailable |
+| #2121 | — | No PR exists | — |
+| [#2122](https://github.com/NVIDIA-NeMo/Gym/pull/2122) | Stirrup, GDPVal | GDPVal judge-call correlation; Stirrup and Tau2 model-call correlation is already present | No agent turns or tool observations |
+
+## Agent coverage
+
+- `V`: complete under the documented observability configuration.
+- `O`: currently partial or path-dependent.
+- `X`: currently unavailable.
+
+| Agent | C1 | C2 | C3 | C4 | C5 | C6 | C7 | Follow-up |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
+| `anyswe_agent` | X | X | X | X | X | X | X | — |
+| `anyterminal_agent` | V | V | X | V | X | X | X | — |
+| `aviary_agent` | V | V | X | V | X | X | X | — |
+| `browsecomp_agent` | V | V | X | V | X | X | X | — |
+| `claude_code_agent` | V | V | X | V | V | V | V | — |
+| `codex_agent` | V | V | X | V | X | X | X | — |
+| `critpt_agent` | V | V | X | V | X | X | X | — |
+| `cvdp_agent` | O | O | X | O | X | X | X | — |
+| `finance_agent` | X | O | X | X | X | X | X | — |
+| `gymnasium_agent` | V | V | X | V | X | X | X | — |
+| `harbor_agent` | X | X | X | X | X | X | X | — |
+| `hermes_agent` | V | V | X | V | X | X | X | #2117: C5, C6, C7 V |
+| `kilocode_agent` | X | X | X | X | X | X | X | — |
+| `labbench2_vlm_agent` | V | V | V | O | O | X | V | — |
+| `langgraph_agent` | X | X | X | X | X | X | X | — |
+| `mini_swe_agent` | X | X | X | X | X | X | X | — |
+| `mini_swe_agent_2` | V | V | X | V | X | X | X | — |
+| `non_executing_simple_agent` | V | V | X | V | X | X | X | — |
+| `openclaw_agent` | X | X | X | X | X | X | X | #2115: C1, C2, C4–C7 V |
+| `opencode_agent` | X | X | X | X | X | X | X | #2119: C1, C2, C4–C7 V |
+| `osworld_agent` | O | O | X | O | X | X | X | — |
+| `pi_agent` | X | X | X | X | X | X | X | #2118: C1, C2, C4–C7 V |
+| `pinchbench` | X | X | X | X | X | X | X | #2115: C1, C2, C4–C7 V |
+| `proof_refinement_agent` | V | V | X | V | X | X | X | — |
+| `remote_agent` | X | O | X | X | X | X | X | — |
+| `scicode_agent` | X | X | X | X | X | X | X | — |
+| `simple_agent` | V | V | V | V | O | X | V | — |
+| `speed_bench_agent` | V | V | X | V | X | X | X | — |
+| `stirrup_agent` | O | O | X | O | X | X | X | #2122: C1, C2, C4 V |
+| `swe_agents` | X | X | X | X | X | X | X | #2120: C1, C2, C4 O; C7 V |
+| `tau2` | V | V | X | V | X | X | X | #2122 validates current correlation |
+| `tool_simulation_agent` | V | V | X | V | X | X | X | — |
+| `toolsandbox_agent` | V | V | X | V | X | X | X | — |
+| `verifiers_agent` | X | X | X | X | X | X | X | — |
+
+Current `O` values reflect the CVDP Simple path, Finance and Remote aggregate usage, LabBench image redaction, OSWorld M3 and
+Pointer direct-provider routes, omitted raised failures in Simple-derived agents, and Stirrup calls outside its policy path. The
+matrix reports producer output, not schema capacity.
+C7 requires standardized agent-side trajectory evidence; model HTTP capture alone does not satisfy it. Follow-up values
+assume rebase onto #2293.

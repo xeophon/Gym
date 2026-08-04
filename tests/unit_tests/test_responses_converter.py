@@ -15,7 +15,7 @@
 """Unit tests for the shared Responses API <-> Chat Completions converter."""
 
 import pytest
-from openai.types.completion_usage import CompletionUsage
+from openai.types.completion_usage import CompletionTokensDetails, CompletionUsage, PromptTokensDetails
 
 from nemo_gym.openai_utils import (
     NeMoGymChatCompletion,
@@ -532,9 +532,11 @@ def test_chat_completion_to_response_sanity(converter: ResponsesConverter):
                 )
             ],
             usage=CompletionUsage(
-                prompt_tokens=1,
-                completion_tokens=2,
-                total_tokens=3,
+                prompt_tokens=11,
+                completion_tokens=5,
+                total_tokens=19,
+                prompt_tokens_details=PromptTokensDetails(cached_tokens=7),
+                completion_tokens_details=CompletionTokensDetails(reasoning_tokens=3),
             ),
         ),
     )
@@ -555,11 +557,11 @@ def test_chat_completion_to_response_sanity(converter: ResponsesConverter):
         ],
         parallel_tool_calls=True,
         usage=NeMoGymResponseUsage(
-            input_tokens=1,
-            input_tokens_details=NeMoGymResponseInputTokensDetails(cached_tokens=0),
-            output_tokens=2,
-            output_tokens_details=NeMoGymResponseOutputTokensDetails(reasoning_tokens=0),
-            total_tokens=3,
+            input_tokens=11,
+            input_tokens_details=NeMoGymResponseInputTokensDetails(cached_tokens=7),
+            output_tokens=5,
+            output_tokens_details=NeMoGymResponseOutputTokensDetails(reasoning_tokens=3),
+            total_tokens=19,
         ),
         tool_choice="auto",
         tools=[],
